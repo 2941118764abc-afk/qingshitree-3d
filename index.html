@@ -448,7 +448,7 @@ const ARTIFACTS = [
     id: 'qingtong-shu',
     name: '青铜神树',
     file: '青铜神树3d模型竹子贴图.glb',
-    url: 'https://github.com/2941118764abc-afk/qingshitree-3d/releases/download/v1.0/qingshitree-tree.glb',
+    url: 'qingshitree-tree.glb.gz',
     period: '商代晚期 · 约公元前1200年',
     meta: '出土于三星堆遗址二号祭祀坑 · 1986年',
     desc: '青铜神树是三星堆文化的标志性器物之一，高达3.96米，是迄今世界上发现的最大青铜树。树上铸有鸟、龙等神灵形象，被认为是古蜀人沟通天地神人的宇宙树。',
@@ -470,7 +470,7 @@ const ARTIFACTS = [
     id: 'liren',
     name: '青铜立人像',
     file: '三星堆立人象.glb',
-    url: 'https://github.com/2941118764abc-afk/qingshitree-3d/releases/download/v1.0/qingshitree-liren.glb',
+    url: 'qingshitree-liren.glb.gz',
     period: '商代晚期 · 约公元前1200年',
     meta: '出土于三星堆遗址二号祭祀坑 · 1986年',
     desc: '青铜大立人像通高260.8厘米，人像高180厘米，是现存最完整的青铜立人像之一。头戴莲花状高冠，身着三件套华服，双手异常宽大呈握物状，赤足立于方形怪兽座上。被认为是古蜀国巫师兼王者形象，手中所握之物或为象牙，或为玉琮，象征着沟通天地的神权。',
@@ -494,7 +494,7 @@ const ARTIFACTS = [
     id: 'renmian',
     name: '青铜人头像',
     file: '三星堆面具.glb',
-    url: 'https://github.com/2941118764abc-afk/qingshitree-3d/releases/download/v1.0/qingshitree-mask.glb',
+    url: 'qingshitree-mask.glb.gz',
     period: '商代晚期 · 约公元前1200年',
     meta: '出土于三星堆遗址二号祭祀坑 · 1986年',
     desc: '青铜人头像通高42.5厘米，是三星堆出土数量最多的一类青铜器。面部敷有金面具，双眼呈杏核状微突，鼻梁高挺，双耳向两侧展开并带有穿孔，颈部呈倒三角形。头顶有尖角状发冠，整体呈现神秘庄重的祭祀形象，代表了古蜀国巫师阶层的身份标识。',
@@ -567,72 +567,86 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// ===== 模型加载 =====
+// ===== 模型加载（支持 .glb.gz） =====
 let currentModel = null;
 let currentArtifact = null;
-const loader = new GLTFLoader();
+
 const loaderFill = document.getElementById('loader-fill');
 const loaderText = document.getElementById('loader-text');
 
-function loadArtifact(artifact) {
+// 加载 gzip 压缩的 .glb.gz 文件
+async function loadGLTFFromGzip(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const buffer = await res.arrayBuffer();
+  const ds = new DecompressionStream('gzip');
+  const decompressed = new Response(buffer).body.pipeThrough(ds);
+  const data = await new Response(decompressed).arrayBuffer();
+  return new Promise((resolve, reject) => {
+    new GLTFLoader().parse(data, '', resolve, reject);
+  });
+}
+
+// 加载普通 .glb 文件（带进度）
+function loadGLTFNormal(url, onProgress) {
+  return new Promise((resolve, reject) => {
+    new GLTFLoader().load(url, resolve, onProgress, reject);
+  });
+}
+
+async function loadArtifact(artifact) {
   currentArtifact = artifact;
 
-  // 清除旧模型
-  if (currentModel) {
-    scene.remove(currentModel);
-    currentModel = null;
-  }
+  if (currentModel) { scene.remove(currentModel); currentModel = null; }
   clearHotspots();
 
   document.getElementById('loader').classList.remove('hidden');
   loaderFill.style.width = '0%';
   loaderText.textContent = '正在加载模型...';
 
-  loader.load(
-    artifact.url || artifact.file,
-    (gltf) => {
-      const model = gltf.scene;
+  try {
+    const url = artifact.url || artifact.file;
+    const isGzip = url.endsWith('.gz');
+    let gltf;
 
-      // 自动居中缩放
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const scale = 2.0 / maxDim;
-      model.scale.setScalar(scale);
-      model.position.sub(center.multiplyScalar(scale));
-      model.position.y += size.y * scale * 0.5;
-
-      model.traverse(child => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
+    if (isGzip) {
+      loaderText.textContent = '正在解压模型...';
+      gltf = await loadGLTFFromGzip(url);
+    } else {
+      gltf = await loadGLTFNormal(url, (xhr) => {
+        const pct = xhr.total ? Math.round(xhr.loaded / xhr.total * 100) : 0;
+        loaderFill.style.width = pct + '%';
+        loaderText.textContent = `加载中 ${pct}%`;
       });
-
-      scene.add(model);
-      currentModel = model;
-
-      controls.target.set(0, size.y * scale * 0.5, 0);
-      controls.update();
-
-      // 放置标注点
-      placeHotspots(artifact, scale, center, size);
-
-      loaderFill.style.width = '100%';
-      loaderText.textContent = '加载完成';
-      setTimeout(() => document.getElementById('loader').classList.add('hidden'), 500);
-    },
-    (xhr) => {
-      const pct = xhr.total ? Math.round(xhr.loaded / xhr.total * 100) : 0;
-      loaderFill.style.width = pct + '%';
-      loaderText.textContent = `加载中 ${pct}%`;
-    },
-    (err) => {
-      console.error(err);
-      loaderText.textContent = '加载失败，请检查文件路径';
     }
-  );
+
+    const model = gltf.scene;
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale = 2.0 / maxDim;
+    model.scale.setScalar(scale);
+    model.position.sub(center.multiplyScalar(scale));
+    model.position.y += size.y * scale * 0.5;
+
+    model.traverse(child => {
+      if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+    });
+
+    scene.add(model);
+    currentModel = model;
+    controls.target.set(0, size.y * scale * 0.5, 0);
+    controls.update();
+    placeHotspots(artifact, scale, center, size);
+
+    loaderFill.style.width = '100%';
+    loaderText.textContent = '加载完成';
+    setTimeout(() => document.getElementById('loader').classList.add('hidden'), 500);
+  } catch (err) {
+    console.error(err);
+    loaderText.textContent = '加载失败：' + err.message;
+  }
 
   updateInfoPanel(artifact);
   updateSidebar(artifact.id);
