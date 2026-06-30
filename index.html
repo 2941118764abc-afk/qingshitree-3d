@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>三星堆文化数字展示平台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0a;
+      color: #e0d5c5;
+      font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* 顶部标题栏 */
+    #header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 60px;
+      background: rgba(10,10,10,0.9);
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+
+    #header h1 {
+      font-size: 18px;
+      font-weight: 300;
+      letter-spacing: 6px;
+      color: #c8a96e;
+    }
+
+    #header .subtitle {
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: #555;
+      margin-left: 24px;
+      margin-top: 2px;
+    }
+
+    /* 左侧文物列表 */
+    #sidebar {
+      position: fixed;
+      left: 0; top: 60px; bottom: 0;
+      width: 220px;
+      background: rgba(10,10,10,0.85);
+      border-right: 1px solid #1e1e1e;
+      padding: 24px 0;
+      z-index: 90;
+      overflow-y: auto;
+      backdrop-filter: blur(8px);
+    }
+
+    #sidebar .section-title {
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: #444;
+      padding: 0 20px 12px;
+      text-transform: uppercase;
+    }
+
+    .artifact-item {
+      padding: 14px 20px;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: all 0.25s ease;
+    }
+
+    .artifact-item:hover {
+      background: rgba(200,169,110,0.05);
+      border-left-color: #c8a96e;
+    }
+
+    .artifact-item.active {
+      background: rgba(200,169,110,0.08);
+      border-left-color: #c8a96e;
+    }
+
+    .artifact-item .name {
+      font-size: 13px;
+      color: #ccc;
+      letter-spacing: 1px;
+    }
+
+    .artifact-item.active .name {
+      color: #c8a96e;
+    }
+
+    .artifact-item .period {
+      font-size: 10px;
+      color: #444;
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+
+    /* 3D 画布区域 */
+    #canvas-container {
+      position: fixed;
+      left: 220px; top: 60px; right: 360px; bottom: 0;
+      background: #0d0d0d;
+    }
+
+    #canvas-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* 操作提示 */
+    #controls-hint {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateX(calc((220px - 360px) / 2));
+      display: flex;
+      gap: 24px;
+      z-index: 80;
+    }
+
+    .hint-item {
+      font-size: 10px;
+      color: #333;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hint-item span {
+      color: #555;
+    }
+
+    /* 右侧信息面板 */
+    #info-panel {
+      position: fixed;
+      right: 0; top: 60px; bottom: 0;
+      width: 360px;
+      background: rgba(10,10,10,0.9);
+      border-left: 1px solid #1e1e1e;
+      padding: 32px 28px;
+      z-index: 90;
+      overflow-y: auto;
+      backdrop-filter: blur(8px);
+    }
+
+    #info-panel .artifact-badge {
+      font-size: 9px;
+      letter-spacing: 4px;
+      color: #c8a96e;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    #info-panel h2 {
+      font-size: 22px;
+      font-weight: 300;
+      letter-spacing: 3px;
+      color: #e8dcc8;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    #info-panel .meta {
+      font-size: 11px;
+      color: #555;
+      letter-spacing: 2px;
+      margin-bottom: 28px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid #1a1a1a;
+    }
+
+    #info-panel .desc {
+      font-size: 13px;
+      line-height: 2;
+      color: #888;
+      margin-bottom: 28px;
+    }
+
+    /* 标注列表 */
+    .annotation-list {
+      margin-top: 8px;
+    }
+
+    .annotation-list .section-label {
+      font-size: 9px;
+      letter-spacing: 4px;
+      color: #333;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+    }
+
+    .annotation-tag {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #141414;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .annotation-tag:hover .tag-title {
+      color: #c8a96e;
+    }
+
+    .annotation-tag .tag-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #c8a96e;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+
+    .annotation-tag .tag-title {
+      font-size: 12px;
+      color: #aaa;
+      letter-spacing: 1px;
+      transition: color 0.2s;
+    }
+
+    .annotation-tag .tag-desc {
+      font-size: 11px;
+      color: #444;
+      margin-top: 4px;
+      line-height: 1.7;
+    }
+
+    /* 标注弹窗 */
+    .annotation-popup {
+      position: fixed;
+      background: rgba(15,15,15,0.95);
+      border: 1px solid #2a2a2a;
+      border-left: 2px solid #c8a96e;
+      padding: 14px 18px;
+      max-width: 240px;
+      z-index: 200;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      backdrop-filter: blur(12px);
+    }
+
+    .annotation-popup.visible {
+      opacity: 1;
+    }
+
+    .annotation-popup .pop-title {
+      font-size: 12px;
+      color: #c8a96e;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+
+    .annotation-popup .pop-desc {
+      font-size: 11px;
+      color: #777;
+      line-height: 1.8;
+    }
+
+    /* 标注点 */
+    .hotspot {
+      position: absolute;
+      cursor: pointer;
+      z-index: 150;
+      transform: translate(-50%, -50%);
+      pointer-events: auto;
+    }
+
+    .hotspot .dot-wrap {
+      position: relative;
+      width: 14px;
+      height: 14px;
+    }
+
+    .hotspot .ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1.5px solid #c8a96e;
+      animation: pulse 2.5s infinite ease-out;
+    }
+
+    .hotspot .dot {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: #c8a96e;
+      border-radius: 50%;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 8px rgba(200,169,110,0.6);
+    }
+
+    .hotspot .label-tag {
+      position: absolute;
+      left: 22px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: #c8a96e;
+      white-space: nowrap;
+      letter-spacing: 2px;
+      padding: 3px 10px;
+      background: rgba(10,10,10,0.7);
+      border: 1px solid rgba(200,169,110,0.3);
+      border-radius: 2px;
+      backdrop-filter: blur(4px);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .hotspot:hover .label-tag,
+    .hotspot.active .label-tag {
+      opacity: 1;
+      transform: translateY(-50%) translateX(4px);
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+
+    /* 加载遮罩 */
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: #0a0a0a;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      transition: opacity 0.6s;
+    }
+
+    #loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-title {
+      font-size: 14px;
+      letter-spacing: 8px;
+      color: #c8a96e;
+    }
+
+    .loader-bar {
+      width: 200px;
+      height: 1px;
+      background: #1a1a1a;
+      overflow: hidden;
+    }
+
+    .loader-fill {
+      height: 100%;
+      background: #c8a96e;
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .loader-text {
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: #333;
+    }
+
+    /* 滚动条 */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- 加载遮罩 -->
+<div id="loader">
+  <div class="loader-title">三 星 堆</div>
+  <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+  <div class="loader-text" id="loader-text">正在加载模型...</div>
+</div>
+
+<!-- 顶部 -->
+<div id="header">
+  <h1>三星堆文化数字展示</h1>
+  <div class="subtitle">SANXINGDUI DIGITAL MUSEUM</div>
+</div>
+
+<!-- 左侧文物列表 -->
+<div id="sidebar">
+  <div class="section-title">文物列表</div>
+  <div id="artifact-list"></div>
+</div>
+
+<!-- 3D 画布 -->
+<div id="canvas-container"></div>
+
+<!-- 操作提示 -->
+<div id="controls-hint">
+  <div class="hint-item"><span>拖拽</span> 旋转</div>
+  <div class="hint-item"><span>滚轮</span> 缩放</div>
+  <div class="hint-item"><span>右键</span> 平移</div>
+</div>
+
+<!-- 标注弹窗 -->
+<div class="annotation-popup" id="popup">
+  <div class="pop-title" id="popup-title"></div>
+  <div class="pop-desc" id="popup-desc"></div>
+</div>
+
+<!-- 右侧信息面板 -->
+<div id="info-panel">
+  <div class="artifact-badge">ARTIFACT DETAIL</div>
+  <h2 id="panel-name"></h2>
+  <div class="meta" id="panel-meta"></div>
+  <div class="desc" id="panel-desc"></div>
+  <div class="annotation-list">
+    <div class="section-label">结构标注</div>
+    <div id="panel-annotations"></div>
+  </div>
+</div>
+
+<!-- Three.js Local (importmap) -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./libs/three.module.min.js",
+    "three/addons/": "./libs/addons/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/OrbitControls.js';
+
+// ===== 文物数据配置 =====
+const ARTIFACTS = [
+  {
+    id: 'qingtong-shu',
+    name: '青铜神树',
+    file: '青铜神树3d模型竹子贴图.glb',
+    url: '青铜神树3d模型竹子贴图.glb',
+    period: '商代晚期 · 约公元前1200年',
+    meta: '出土于三星堆遗址二号祭祀坑 · 1986年',
+    desc: '青铜神树是三星堆文化的标志性器物之一，高达3.96米，是迄今世界上发现的最大青铜树。树上铸有鸟、龙等神灵形象，被认为是古蜀人沟通天地神人的宇宙树。',
+    annotations: [
+      { id: 'trunk',   label: '主干',   desc: '三节叠合的青铜树干，象征天地人三界的贯通。' },
+      { id: 'branch',  label: '树枝',   desc: '共九根树枝，每根上铸有神鸟与花果，寓意太阳神鸟栖居。' },
+      { id: 'dragon',  label: '神龙',   desc: '树身一侧攀附一条铜龙，头朝下，为神灵下凡的象征。' },
+      { id: 'bird',    label: '神鸟',   desc: '树冠处站立的神鸟，被认为是古蜀"太阳鸟"的化身。' },
+    ],
+    // 标注点直接使用模型局部坐标（通过 Shift+点击获取）
+    hotspots: [
+      { id: 'trunk',  position: { x: -0.0523, y: 0.0663,  z: 0.0043 } },
+      { id: 'branch', position: { x: 0.1683,  y: 0.3338,  z: 0.1243 } },
+      { id: 'dragon', position: { x: -0.1815, y: -0.4147, z: 0.0302 } },
+      { id: 'bird',   position: { x: 0.1043,  y: 0.1547,  z: 0.1111 } },
+    ]
+  },
+  {
+    id: 'liren',
+    name: '青铜立人像',
+    file: '三星堆立人象.glb',
+    url: '三星堆立人象.glb',
+    period: '商代晚期 · 约公元前1200年',
+    meta: '出土于三星堆遗址二号祭祀坑 · 1986年',
+    desc: '青铜大立人像通高260.8厘米，人像高180厘米，是现存最完整的青铜立人像之一。头戴莲花状高冠，身着三件套华服，双手异常宽大呈握物状，赤足立于方形怪兽座上。被认为是古蜀国巫师兼王者形象，手中所握之物或为象牙，或为玉琮，象征着沟通天地的神权。',
+    annotations: [
+      { id: 'crown',   label: '高冠',   desc: '头戴莲花状高冠，冠上饰有太阳纹饰，象征通天法力。' },
+      { id: 'face',    label: '面容',   desc: '浓眉大眼、高鼻阔口，带有三星堆人像典型的"纵目"特征。' },
+      { id: 'hands',   label: '巨手',   desc: '双手异常夸张，呈环握状，原应持有大型礼仪器物，可能是象牙或玉琮。' },
+      { id: 'robe',    label: '华服',   desc: '身穿三层精美华服，饰有龙纹、鸟纹、虫纹，为古蜀最高等级礼服。' },
+      { id: 'base',    label: '兽座',   desc: '赤足立于四足方形怪兽座上，兽座象征大地，立人居中连通天地。' },
+    ],
+    // 立人象标注点 - 通过Shift+点击标定
+    hotspots: [
+      { id: 'crown', position: { x: -0.0015, y: 0.4716, z: -0.0041 } },
+      { id: 'face',  position: { x: -0.0058, y: 0.3748, z: -0.0053 } },
+      { id: 'hands', position: { x: 0.0989, y: 0.3488, z: 0.0206 } },
+      { id: 'robe',  position: { x: -0.0630, y: 0.0675, z: 0.0411 } },
+      { id: 'base',  position: { x: 0.0142, y: -0.2962, z: 0.0582 } },
+    ]
+  },
+  {
+    id: 'renmian',
+    name: '青铜人头像',
+    file: '三星堆面具.glb',
+    url: '三星堆面具.glb',
+    period: '商代晚期 · 约公元前1200年',
+    meta: '出土于三星堆遗址二号祭祀坑 · 1986年',
+    desc: '青铜人头像通高42.5厘米，是三星堆出土数量最多的一类青铜器。面部敷有金面具，双眼呈杏核状微突，鼻梁高挺，双耳向两侧展开并带有穿孔，颈部呈倒三角形。头顶有尖角状发冠，整体呈现神秘庄重的祭祀形象，代表了古蜀国巫师阶层的身份标识。',
+    annotations: [
+      { id: 'crown', label: '发冠', desc: '头顶的尖角状发髻或冠饰，可能代表身份等级或通神法器。' },
+      { id: 'eye',   label: '眼睛', desc: '杏核状微突的双眼，表面敷有金面具，显得神秘威严。' },
+      { id: 'ear',   label: '耳朵', desc: '向两侧大幅度伸展的招风耳，耳垂处可见穿孔。' },
+      { id: 'neck',  label: '颈部', desc: '倒三角形的颈部，与面部一体铸成，线条简洁有力。' },
+    ],
+    hotspots: [
+      { id: 'crown', position: { x: -0.1659, y: 0.2735, z: -0.0237 } },
+      { id: 'eye',   position: { x: 0.2201, y: 0.1858, z: -0.0813 } },
+      { id: 'ear',   position: { x: 0.0292, y: 0.2099, z: 0.1602 } },
+      { id: 'neck',  position: { x: -0.0904, y: -0.3038, z: -0.0053 } },
+    ]
+  }
+];
+
+// ===== 场景初始化 =====
+const container = document.getElementById('canvas-container');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+renderer.shadowMap.enabled = true;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0d0d);
+scene.fog = new THREE.Fog(0x0d0d0d, 8, 20);
+
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.01, 100);
+camera.position.set(0, 1, 4);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minDistance = 0.5;
+controls.maxDistance = 12;
+controls.target.set(0, 0.5, 0);
+
+// ===== 灯光 =====
+const ambient = new THREE.AmbientLight(0xffeedd, 0.4);
+scene.add(ambient);
+
+const keyLight = new THREE.DirectionalLight(0xfff5e0, 1.2);
+keyLight.position.set(2, 4, 3);
+keyLight.castShadow = true;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0x334466, 0.5);
+fillLight.position.set(-3, 2, -2);
+scene.add(fillLight);
+
+const rimLight = new THREE.PointLight(0xc8a96e, 0.8, 10);
+rimLight.position.set(0, 3, -3);
+scene.add(rimLight);
+
+// 地面反光圈
+const groundGeo = new THREE.CircleGeometry(1.5, 64);
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x111111,
+  roughness: 0.8,
+  metalness: 0.1,
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ===== 模型加载 =====
+let currentModel = null;
+let currentArtifact = null;
+const loader = new GLTFLoader();
+const loaderFill = document.getElementById('loader-fill');
+const loaderText = document.getElementById('loader-text');
+
+function loadArtifact(artifact) {
+  currentArtifact = artifact;
+
+  // 清除旧模型
+  if (currentModel) {
+    scene.remove(currentModel);
+    currentModel = null;
+  }
+  clearHotspots();
+
+  document.getElementById('loader').classList.remove('hidden');
+  loaderFill.style.width = '0%';
+  loaderText.textContent = '正在加载模型...';
+
+  loader.load(
+    artifact.url || artifact.file,
+    (gltf) => {
+      const model = gltf.scene;
+
+      // 自动居中缩放
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 2.0 / maxDim;
+      model.scale.setScalar(scale);
+      model.position.sub(center.multiplyScalar(scale));
+      model.position.y += size.y * scale * 0.5;
+
+      model.traverse(child => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      scene.add(model);
+      currentModel = model;
+
+      controls.target.set(0, size.y * scale * 0.5, 0);
+      controls.update();
+
+      // 放置标注点
+      placeHotspots(artifact, scale, center, size);
+
+      loaderFill.style.width = '100%';
+      loaderText.textContent = '加载完成';
+      setTimeout(() => document.getElementById('loader').classList.add('hidden'), 500);
+    },
+    (xhr) => {
+      const pct = xhr.total ? Math.round(xhr.loaded / xhr.total * 100) : 0;
+      loaderFill.style.width = pct + '%';
+      loaderText.textContent = `加载中 ${pct}%`;
+    },
+    (err) => {
+      console.error(err);
+      loaderText.textContent = '加载失败，请检查文件路径';
+    }
+  );
+
+  updateInfoPanel(artifact);
+  updateSidebar(artifact.id);
+}
+
+// ===== 信息面板 =====
+function updateInfoPanel(artifact) {
+  document.getElementById('panel-name').textContent = artifact.name;
+  document.getElementById('panel-meta').textContent = artifact.period + '\n' + artifact.meta;
+  document.getElementById('panel-desc').textContent = artifact.desc;
+
+  const annotationsEl = document.getElementById('panel-annotations');
+  annotationsEl.innerHTML = '';
+  artifact.annotations.forEach(ann => {
+    const el = document.createElement('div');
+    el.className = 'annotation-tag';
+    el.innerHTML = `
+      <div class="tag-dot"></div>
+      <div>
+        <div class="tag-title">${ann.label}</div>
+        <div class="tag-desc">${ann.desc}</div>
+      </div>`;
+    annotationsEl.appendChild(el);
+  });
+}
+
+
+// ===== 左侧列表 =====
+function buildSidebar() {
+  const list = document.getElementById('artifact-list');
+  list.innerHTML = '';
+  ARTIFACTS.forEach(a => {
+    const el = document.createElement('div');
+    el.className = 'artifact-item';
+    el.dataset.id = a.id;
+    el.innerHTML = `<div class="name">${a.name}</div><div class="period">${a.period.split('·')[0].trim()}</div>`;
+    el.addEventListener('click', () => loadArtifact(a));
+    list.appendChild(el);
+  });
+}
+
+function updateSidebar(activeId) {
+  document.querySelectorAll('.artifact-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === activeId);
+  });
+}
+
+// ===== 标注热点（3D锚点 + DOM投影方案）=====
+const hotspotMarkers = [];
+const hotspotEls = [];
+
+function clearHotspots() {
+  hotspotEls.forEach(el => el.remove());
+  hotspotEls.length = 0;
+  hotspotMarkers.forEach(m => { if (m.parent) m.parent.remove(m); });
+  hotspotMarkers.length = 0;
+}
+
+function placeHotspots(artifact, scale, center, size) {
+  const popup = document.getElementById('popup');
+  const annMap = {};
+  artifact.annotations.forEach(a => annMap[a.id] = a);
+
+  artifact.hotspots.forEach(hs => {
+    const ann = annMap[hs.id];
+    if (!ann) return;
+
+    // 3D锚点：Object3D 挂到模型上，跟随旋转
+    const marker = new THREE.Object3D();
+    marker.position.set(hs.position.x, hs.position.y, hs.position.z);
+    marker.userData = { id: hs.id, label: ann.label, desc: ann.desc };
+    currentModel.add(marker);
+    hotspotMarkers.push(marker);
+
+    // DOM元素：标注点
+    const el = document.createElement('div');
+    el.className = 'hotspot';
+    el.innerHTML = `
+      <div class="dot-wrap">
+        <div class="ring"></div>
+        <div class="dot"></div>
+      </div>
+      <div class="label-tag">${ann.label}</div>`;
+    el.dataset.id = hs.id;
+    container.appendChild(el);
+    hotspotEls.push(el);
+
+    el.addEventListener('mouseenter', () => {
+      el.classList.add('active');
+      document.getElementById('popup-title').textContent = ann.label;
+      document.getElementById('popup-desc').textContent = ann.desc;
+      popup.classList.add('visible');
+    });
+
+    el.addEventListener('mousemove', (e) => {
+      popup.style.left = (e.clientX + 16) + 'px';
+      popup.style.top  = (e.clientY - 10) + 'px';
+    });
+
+    el.addEventListener('mouseleave', () => {
+      el.classList.remove('active');
+      popup.classList.remove('visible');
+    });
+  });
+}
+
+// ===== 响应式 =====
+function onResize() {
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+window.addEventListener('resize', onResize);
+
+// ===== 渲染循环 =====
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  // 确保相机世界矩阵在投影前更新完毕
+  camera.updateMatrixWorld();
+
+  // 更新标注点DOM位置 —— 从3D锚点投影到屏幕
+  for (let i = 0; i < hotspotMarkers.length; i++) {
+    const marker = hotspotMarkers[i];
+    const el = hotspotEls[i];
+    if (!marker || !el) continue;
+
+    // 获取锚点世界坐标（已包含模型旋转/缩放/平移）
+    const worldPos = new THREE.Vector3();
+    marker.getWorldPosition(worldPos);
+
+    // 投影到 NDC 空间
+    const projected = worldPos.clone().project(camera);
+
+    // 转换到 canvas 容器坐标
+    const rect = container.getBoundingClientRect();
+    const x = (projected.x * 0.5 + 0.5) * rect.width;
+    const y = (-projected.y * 0.5 + 0.5) * rect.height;
+
+    // 相机背后隐藏
+    if (projected.z > 1 || projected.z < -1) {
+      el.style.display = 'none';
+    } else {
+      el.style.display = 'block';
+      el.style.left = x + 'px';
+      el.style.top  = y + 'px';
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ===== Shift+点击调试：获取模型局部坐标 =====
+container.addEventListener('click', (e) => {
+  if (!e.shiftKey || !currentModel) return;
+
+  const rect = container.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((e.clientX - rect.left) / rect.width) * 2 - 1,
+    -((e.clientY - rect.top) / rect.height) * 2 + 1
+  );
+
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObject(currentModel, true);
+
+  if (intersects.length > 0) {
+    const point = intersects[0].point;
+    // 转换到模型局部坐标
+    const local = currentModel.worldToLocal(point.clone());
+    console.log(`%c[坐标获取] 世界坐标: (${point.x.toFixed(4)}, ${point.y.toFixed(4)}, ${point.z.toFixed(4)})`, 'color: #c8a96e');
+    console.log(`%c[坐标获取] 局部坐标: { x: ${local.x.toFixed(4)}, y: ${local.y.toFixed(4)}, z: ${local.z.toFixed(4)} }`, 'color: #c8a96e; font-size: 14px');
+    console.log(`%c复制到hotspots: { id: 'xxx', position: { x: ${local.x.toFixed(4)}, y: ${local.y.toFixed(4)}, z: ${local.z.toFixed(4)} } },`, 'color: #c8a96e; font-size: 14px');
+
+    // 在点击位置放一个临时小球
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(0.02, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xff0000 })
+    );
+    sphere.position.copy(local);
+    currentModel.add(sphere);
+  }
+});
+
+// ===== 启动 =====
+buildSidebar();
+loadArtifact(ARTIFACTS[0]);
+animate();
+</script>
+</body>
+</html>
